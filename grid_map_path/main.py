@@ -1,21 +1,14 @@
-"""
-路径规划算法对比演示系统 - 主程序
-优化：1.传递探索区域参数 2.放大结果文本框 3.优化结果文本格式
-"""
+"""Gradio application for comparing grid pathfinding algorithms."""
 
-import sys
-import os
-
-# 添加当前目录到Python路径
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
-from utils.grid_generator import create_simple_grid, create_grid, create_maze_grid
-from utils.visualization import plot_grid, plot_algorithm_comparison, fig_to_pil
-from utils.grid_generator import PathFinder  # 保持原有导入路径
-import gradio as gr
 import matplotlib
 
-matplotlib.use('Agg')  # 使用非交互式后端，避免绘图报错
+matplotlib.use("Agg")  # 使用非交互式后端，避免绘图报错
+
+import gradio as gr
+
+from algorithms.pathfinder import PathFinder
+from utils.grid_generator import create_simple_grid, create_grid, create_maze_grid
+from utils.visualization import plot_grid, plot_algorithm_comparison, fig_to_pil
 
 # 全局变量
 current_grid = create_simple_grid()
@@ -57,7 +50,13 @@ def update_grid(grid_type: str, rows: int, cols: int, obstacle_density: float):
         goal=current_goal,
         title=f"当前地图 ({rows_actual}x{cols_actual}) - 障碍：深灰色 | 起点：绿色 | 终点：红色"
     )
-    return fig_to_pil(fig)
+    return (
+        fig_to_pil(fig),
+        current_start[0],
+        current_start[1],
+        current_goal[0],
+        current_goal[1],
+    )
 
 
 def update_start(start_row: int, start_col: int):
@@ -68,8 +67,8 @@ def update_start(start_row: int, start_col: int):
 
     # 校验坐标有效性
     current_start = (
-        max(0, min(start_row, rows_actual - 1)),
-        max(0, min(start_col, cols_actual - 1))
+        max(0, min(int(start_row), rows_actual - 1)),
+        max(0, min(int(start_col), cols_actual - 1))
     )
     # 确保起点不是障碍
     if current_grid[current_start[0]][current_start[1]] == 1:
@@ -93,8 +92,8 @@ def update_goal(goal_row: int, goal_col: int):
 
     # 校验坐标有效性
     current_goal = (
-        max(0, min(goal_row, rows_actual - 1)),
-        max(0, min(goal_col, cols_actual - 1))
+        max(0, min(int(goal_row), rows_actual - 1)),
+        max(0, min(int(goal_col), cols_actual - 1))
     )
     # 确保终点不是障碍
     if current_grid[current_goal[0]][current_goal[1]] == 1:
@@ -114,9 +113,8 @@ def run_algorithm(algorithm: str):
     """运行单个算法并返回可视化结果（优化：传递探索区域参数）"""
     global current_grid, current_start, current_goal, path_finder
 
-    # 运行算法并提取结果（包含探索节点集合）
-    all_results = path_finder.run_all_algorithms(current_start, current_goal)
-    result = all_results.get(algorithm, {})
+    # 只运行当前选择的算法
+    result = path_finder.get_algorithm_result(algorithm, current_start, current_goal)
     path = result.get('path', [])
     explored = result.get('explored', set())  # 获取探索区域
 
@@ -138,7 +136,7 @@ def run_algorithm(algorithm: str):
         performance_text += f"- 探索节点数：{result['nodes_explored']} 个\n"
         performance_text += f"- 运行时间：{result.get('time', 0):.6f} 秒\n\n"
         performance_text += f"🗺️ 路径详情：\n起点 {current_start} → 终点 {current_goal}\n"
-        performance_text += f"路径前5步：{path[:5]}...（共{len(path)}步）" if len(path) > 5 else f"完整路径：{path}"
+        performance_text += f"前5个坐标：{path[:5]}...（共{len(path) - 1}步）" if len(path) > 5 else f"完整路径：{path}（共{len(path) - 1}步）"
     else:
         performance_text = f"❌ {algorithm}算法未找到有效路径！\n\n"
         performance_text += f"📊 运行详情：\n"
@@ -233,7 +231,7 @@ with gr.Blocks(title="路径规划算法对比演示系统", theme=gr.themes.Sof
     update_grid_btn.click(
         update_grid,
         inputs=[grid_type, rows, cols, obstacle_density],
-        outputs=[result_img]
+        outputs=[result_img, start_row, start_col, goal_row, goal_col]
     )
     update_start_btn.click(
         update_start,
@@ -270,4 +268,4 @@ with gr.Blocks(title="路径规划算法对比演示系统", theme=gr.themes.Sof
 
 
 if __name__ == "__main__":
-    demo.launch(server_port=7860)  # 保持原有端口
+    demo.launch(server_port=7860, inbrowser=True)

@@ -9,6 +9,18 @@ from io import BytesIO
 from PIL import Image
 from typing import List, Dict, Any, Tuple, Set, Optional
 
+# Prefer a Chinese-capable font where one is installed, with common OS fallbacks.
+plt.rcParams["font.sans-serif"] = [
+    "Microsoft YaHei",
+    "SimHei",
+    "PingFang SC",
+    "Hiragino Sans GB",
+    "Noto Sans CJK SC",
+    "WenQuanYi Zen Hei",
+    "DejaVu Sans",
+]
+plt.rcParams["axes.unicode_minus"] = False
+
 
 def plot_grid(
     grid: List[List[int]],
